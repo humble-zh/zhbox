@@ -23,57 +23,109 @@ SOFTWARE.
 *******************************************************************************/
 #ifndef __MQTT_H__
 #define __MQTT_H__
+#include <libconfig.h>
 #include <mosquitto.h>
 #include <event.h>
-#include <event2/util.h>
 
-typedef enum {
-    MQTT_STATE_INIT = 0,
-    MQTT_STATE_CONNECTING,
-    MQTT_STATE_DISCONNECTED,
-    MQTT_STATE_RECONNECTING,
-    MQTT_STATE_CONNECTED,
-    MQTT_STATE_RUNING,
+#define MQTT_BASESTATE(CLOUD) \
+    MQTT##CLOUD##_STATE_INIT = 0,\
+    MQTT##CLOUD##_STATE_CONNECTING,\
+    MQTT##CLOUD##_STATE_DISCONNECTED,\
+    MQTT##CLOUD##_STATE_CONNECTED,\
+    MQTT##CLOUD##_STATE_RECONNECTING,\
+    MQTT##CLOUD##_STATE_RUNING
+
+typedef enum _mqtt_state_t{
+    MQTT_BASESTATE(),
     MQTT_STATE_END
 }mqtt_state_t;
 
-typedef int mqtt_task_cb(void *);
+
+typedef struct _mqtt_t mqtt_t;
+
+#define MQTTGETBASESTRINGVAR(this, key, keylen, dptr) do {\
+    if(!strncmp("name", key, keylen)){ return sprintf(dptr, "%s", this->name); }\
+    if(!strncmp("addr", key, keylen)){ return sprintf(dptr, "%s", this->addr); }\
+    if(!strncmp("port", key, keylen)){ return sprintf(dptr, "%d", this->port); }\
+    if(!strncmp("clientid", key, keylen)){ return sprintf(dptr, "%s", this->clientid); }\
+    if(!strncmp("usr", key, keylen)){ return sprintf(dptr, "%s", this->usr); }\
+    if(!strncmp("pwd", key, keylen)){ return sprintf(dptr, "%s", this->pwd); }\
+    if(!strncmp("pubcnt", key, keylen)){ return sprintf(dptr, "%d", this->pubcnt); }\
+} while (0)
+
+typedef int (*method_getvar_t)(void *vmqttptr, const char *key, int32_t keylen, char *dptr);
+typedef int (*method_topicexpansion_t)(void *vmqttptr, const char *str, char *dptr);
+typedef void (*method_show_t)(void *vmqttptr);
+typedef int (*method_subscribe_t)(void *vmqttptr, int *mid, const char *sub, int qos);
+typedef int (*method_publish_t)(void *vmqttptr, int *mid, const char *topic, int payloadlen, const void *payload, int qos, bool retain);
+typedef void (*method_subscribeall_t)(void *vmqttptr);
+typedef int (*method_tasksrun_t)(void *vmqttptr);
+typedef void (*method_rcvhandle_t)(void *vmqttptr, char *topic, char *payload);
+typedef void (*method_onpub_t)(void *vmqttptr, int mid);
 
 #define MQTT_BASEATTRIBUTES \
-    char *addr;\
+    int32_t cloudid;\
+    const char *name;\
+    const char *addr;\
     int32_t port;\
-    char *clientid;\
-    bool clean_session;\
-    char *usr;\
-    char *pwd;\
+    const char *clientid;\
+    int32_t clean_session;\
+    const char *usr;\
+    const char *pwd;\
     int32_t keepalive;\
-    int8_t qos;\
+    int32_t qos;\
     struct mosquitto *mosq;\
-    mqtt_state_t state;\
+    int32_t state;\
     int8_t isconnected;\
+    int32_t pubcnt;\
+    struct timeval fsmtv;\
     struct event fsmev;\
-    struct timeval taskinterval;\
-    mqtt_task_cb *taskcb;\
-    void *taskarg;
+    config_setting_t *cssubtopicsls;\
+    config_setting_t *cstasksls;\
+    int32_t taskstot;\
+    int32_t *taskslasttimels;\
+    int32_t *tasksintervalls;\
+    method_getvar_t           m_getvar;\
+    method_topicexpansion_t   m_strexpan;\
+    method_show_t             m_show;\
+    method_subscribe_t        m_sub;\
+    method_publish_t          m_pub;\
+    method_subscribeall_t     m_suball;\
+    method_tasksrun_t         m_tasksrun;\
+    method_rcvhandle_t        m_rcvhandle;\
+    method_onpub_t            m_onpub;
 
-
-typedef struct {
+struct _mqtt_t{
     MQTT_BASEATTRIBUTES
-    int32_t pub_cnt;
-    const char *subtopic;
-    const char *pubtopic;
-}mqtt_t;
+};
 
-//callback function
-extern void mosq_cb_on_connect(struct mosquitto *mosq, void *obj, int rc);
-extern void mosq_cb_on_disconnect(struct mosquitto *mosq, void *obj, int rc);
-extern void mosq_cb_on_sub(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos);
-extern void mosq_cb_on_unsub(struct mosquitto *mosq, void *obj, int mid);
-extern void mosq_cb_on_log(struct mosquitto *mosq, void *obj, int level, const char *str);
-extern void mosq_cb_on_pub(struct mosquitto *mosq, void *obj, int mid);
-extern void mosq_rcv(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message);
 
-extern int mosq_pub(struct mosquitto *mosq, const char *topic, int32_t payloadlen, const char *payload, int qos);
-extern void mqtt_fsm_cb(evutil_socket_t fd, short event, void *user_data);
+#define mqttle(fmt, arg...) do {\
+    fprintf(stderr, "%s:%d: '%s' " fmt "\n", __FUNCTION__, __LINE__, this->clientid, ## arg);\
+    syslog(LOG_ERR, "%s:%d: '%s' " fmt, __FUNCTION__, __LINE__, this->clientid, ## arg);\
+} while (0)
+
+#define mqttlw(fmt, arg...) do {\
+    printf("%s:%d: '%s' " fmt "\n", __FUNCTION__, __LINE__, this->clientid, ## arg);\
+    syslog(LOG_WARNING, "%s:%d: '%s' " fmt, __FUNCTION__, __LINE__, this->clientid, ## arg);\
+} while (0)
+
+#define mqttln(fmt, arg...) do {\
+    printf("%s:%d: '%s' " fmt "\n", __FUNCTION__, __LINE__, this->clientid, ## arg);\
+    syslog(LOG_NOTICE, "%s:%d: '%s' " fmt, __FUNCTION__, __LINE__, this->clientid, ## arg);\
+} while (0)
+
+#define mqttli(fmt, arg...) do {\
+    printf("%s:%d: '%s' " fmt "\n", __FUNCTION__, __LINE__, this->clientid, ## arg);\
+    syslog(LOG_INFO, "%s:%d: '%s' " fmt, __FUNCTION__, __LINE__, this->clientid, ## arg);\
+} while (0)
+
+#define mqttld(fmt, arg...) do {\
+    printf("%s:%d: '%s' " fmt "\n", __FUNCTION__, __LINE__, this->clientid, ## arg);\
+    syslog(LOG_DEBUG, "%s:%d: '%s' " fmt, __FUNCTION__, __LINE__, this->clientid, ## arg);\
+} while (0)
+
+extern int mqtt_tasksinit(void *vmqttptr);
+extern void mqtt_set_default(mqtt_t *mqttptr);
 
 #endif //__MQTT_H__

@@ -34,31 +34,24 @@ SOFTWARE.
 #include <linux/limits.h>
 #include "pidfile.h"
 #include "l.h"
+#include "zhbox.h"
+#include "mqtt.h"
 
 #define PID_FILE    "/var/run/%s.pid"
 #define OUT_FILE    "/tmp/%s.log"
 
-int need_start = 0,
-    need_stop = 0,
-    need_daemon = 1;
+static int need_start = 0,
+           need_stop = 0,
+           need_daemon = 1;
 
-struct event fsmev;
-struct timeval fsmevinterval = { .tv_sec = 5, .tv_usec = 0 };
-struct event_base *base = NULL;
-
-char *configfile;
-char pid_file[PATH_MAX];
+static struct event_base *base = NULL;
+static char *configfile;
+static char pid_file[PATH_MAX];
 
 static int get_opt(int argc, char **argv);
 static void termination(int sig);
 static int daemonize(void);
 static void usage(void);
-
-void hello_fsm_cb(evutil_socket_t fd, short event, void *user_data)
-{
-    l_d("hello world");
-    event_add(&fsmev, &fsmevinterval); //redo
-}
 
 int main (int argc, char **argv)
 {
@@ -91,20 +84,19 @@ int main (int argc, char **argv)
     signal(SIGTERM, termination);
 
     base = event_base_new();
-    if (base == NULL) { l_e("event_base_new() failed"); return -1; }
+    if(base == NULL) { l_e("event_base_new() failed"); return -1; }
 
     mosquitto_lib_init();
 
-
-    event_assign(&fsmev, base, -1, EV_TIMEOUT, hello_fsm_cb, NULL);
-    event_add(&fsmev, &fsmevinterval);
+    if(zhbox_init(base) < 0){ return -1; }
 
     event_base_dispatch(base);
 
     l_d("zhbox exiting");
+    zhbox_destory();
+    mosquitto_lib_cleanup();
     event_base_free(base);
     remove_pid(pid_file);
-
     return (0);
 }
 
@@ -120,8 +112,7 @@ static int get_opt(int argc, char **argv)
         {0, 0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "hSsc:f", long_opts, NULL))
-            != -1) {
+    while ((opt = getopt_long(argc, argv, "hSsc:f", long_opts, NULL)) != -1) {
         switch (opt) {
             case 'S': need_stop = 1; break;
             case 's': need_start = 1; break;
@@ -129,8 +120,7 @@ static int get_opt(int argc, char **argv)
             case 'f': need_daemon = 0; break;
             case '?':
             case 'h':
-            default:
-                usage(); return (-1);
+            default:  usage(); return (-1);
         }
     }
 
@@ -141,8 +131,7 @@ static int get_opt(int argc, char **argv)
     return (0);
 }
 
-
-static void termination(int sig) { event_base_loopbreak(base); }
+static void termination(int sig) { l_i("stoping"); event_base_loopbreak(base); }
 
 static int daemonize(void)
 {
@@ -177,15 +166,14 @@ static int daemonize(void)
     return (0);
 }
 
-
 static void usage(void)
 {
 #define USAGE "\
 Usage: \n\
   zhbox -<hsSc:> -[f]\n\n\
 e.g.\n\
-  # start with the /etc/configfile\n\
-    zhbox -sc /etc/configfile\n\n\
+  # start with the /etc/file.cfg\n\
+    zhbox -sc /etc/file.cfg\n\n\
   # Stop the process\n\
     zhbox -S\n\n"
 

@@ -25,101 +25,233 @@ SOFTWARE.
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <mosquitto.h>
-#include "mqtt.h"
+#include <ctype.h>
 #include "l.h"
+#include "lib.h"
+#include "mqtt.h"
 
-
-void mosq_cb_on_connect(struct mosquitto *mosq, void *obj, int rc)
+static int32_t mqtt_getvar(void *vmqttptr, const char *key, int32_t keylen, char *dptr)
 {
-    mqtt_t *mqttptr = (mqtt_t *)obj;
-    mqttptr->isconnected = 1;
-    mqttptr->state = MQTT_STATE_RUNING;
-    l_d("%s MQTT connected", mqttptr->clientid);
-    //should we subscribe some topics??
-}
-
-void mosq_cb_on_disconnect(struct mosquitto *mosq, void *obj, int rc)
-{
-    mqtt_t *mqttptr = (mqtt_t *)obj;
-    mqttptr->isconnected = 0;
-    mqttptr->state = MQTT_STATE_DISCONNECTED;
-    l_w("MQTT on_disconnect");
-}
-
-void mosq_cb_on_sub(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos) { l_d("topic subed"); }
-
-void mosq_cb_on_unsub(struct mosquitto *mosq, void *obj, int mid) { l_d("topic unsubed"); }
-
-void mosq_cb_on_log(struct mosquitto *mosq, void *obj, int level, const char *str) { /*l_d("%s", str);*/ }
-
-void mosq_cb_on_pub(struct mosquitto *mosq, void *obj, int mid) { l_d("msg pubed.mid:%d", mid); }
-
-void mosq_rcv(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message) { l_i("%s %s", (char *)message->topic, (char *)message->payload); }
-
-
-/*
-int mosq_pub(struct mosquitto *mosq, const char *topic, int32_t payloadlen, const char *payload, int qos)
-{
-    int32_t rc;
-    const char *error_string = NULL;
-
-    if (NULL == mosq || NULL == topic || NULL == payload || payloadlen <= 0) {
-        l_e("Param invalid");
-        return -1;
-    }
-
-    l_i("%s %s qos%d", topic, payload, qos);
-    rc = mosquitto_publish(mosq, NULL, topic, payloadlen, payload, qos, true);
-    if (MOSQ_ERR_SUCCESS != rc) {
-        error_string = mosquitto_strerror(rc);
-        l_e("Pub failed:%s", error_string);
-        return -1;
-    }
-
+    mqtt_t *this = vmqttptr;
+    MQTTGETBASESTRINGVAR(this, key, keylen, dptr);
     return 0;
 }
-*/
 
-
-void mqtt_fsm_cb(evutil_socket_t fd, short event, void *user_data)
+static int32_t mqtt_stringexpansion(void *vmqttptr, const char *str, char *dptr)
 {
-    int rc;
-    struct timeval tv;
-    mqtt_t *mqttptr = (mqtt_t *)user_data;
+    mqtt_t *this = vmqttptr;
+    int finallen = 0;
+    if((!this) || (!str) || (!dptr)){ mqttle("Argv is NULL"); return 0; }
+    if(!this->m_getvar){ mqttle("this->m_getvar() is NULL"); return 0; }
 
-    switch (mqttptr->state) {
-        case MQTT_STATE_INIT:
-        case MQTT_STATE_CONNECTING:
-            rc = mosquitto_connect_async(mqttptr->mosq, mqttptr->addr, mqttptr->port, mqttptr->keepalive);
-            if (MOSQ_ERR_SUCCESS == rc) {  l_d("mosquitto_connect_async() rc %d", rc); }
-            else { l_w("mosquitto_connect_async() failed:rc %d, %s, reconnecting", rc, mosquitto_strerror(rc)); }
-            mqttptr->state = MQTT_STATE_RECONNECTING; //connect once,then reconnect always if needed
-            tv.tv_sec = 5; tv.tv_usec = 0;
-            break;
+    while(*str != '\0'){
+        if(str[0] == '{' && isalpha(str[1])){
+            str++;
+            int32_t keylen = strchr(str, '}') - str -1;
+            int32_t len = this->m_getvar(this, str, keylen, &dptr[finallen]);
+            if(len < 0){ mqttle("sprintf() failed"); return 0; }
+            finallen += len;
+            str += (keylen + 2);
+        }
+        dptr[finallen++] = *str++;
+    }
+    dptr[finallen++] = '\0';
+    return finallen;
+}
 
-        case MQTT_STATE_DISCONNECTED:
-        case MQTT_STATE_RECONNECTING:
-            rc = mosquitto_reconnect_async(mqttptr->mosq);
-            if (MOSQ_ERR_SUCCESS == rc) { l_d("mosquitto_reconnect_async() rc %d", rc); }
-            else { l_w("mosquitto_reconnect_async() failed:rc %d, %s, reconnecting", rc, mosquitto_strerror(rc)); }
-            tv.tv_sec = 5; tv.tv_usec = 0;
-            break;
+static void mqtt_show(void *vmqttptr)
+{
+    mqtt_t *this = vmqttptr;
+    mqttld("{");
+    mqttld("  cloud: %d", this->cloudid);
+    mqttld("  name: '%s'", this->name);
+    mqttld("  addr: '%s'", this->addr);
+    mqttld("  port: %d", this->port);
+    mqttld("  clientid: '%s'", this->clientid);
+    mqttld("  clean_session: %d", this->clean_session);
+    mqttld("  usr: '%s'", this->usr);
+    mqttld("  pwd: '%s'", this->pwd);
+    mqttld("  keepalive: %d", this->keepalive);
+    mqttld("  qos: %d", this->qos);
+    mqttld("}");
+    return ;
+}
 
-        case MQTT_STATE_CONNECTED:
-            break;
+static int mqtt_subscribe(void *vmqttptr, int *mid, const char *sub, int qos)
+{
+    mqtt_t *this = vmqttptr;
+    int32_t rc = mosquitto_subscribe(this->mosq, mid, sub, qos);
+    if (MOSQ_ERR_SUCCESS != rc) { mqttle("mosquitto_subscribe() failed:rc%d.'%s'", rc, mosquitto_strerror(rc)); return rc; }
+    mqttli("sub '%s' qos%d rc%d", sub, qos, rc);
+    return rc;
+}
 
-        case MQTT_STATE_RUNING:
-            if(mqttptr->taskcb){ mqttptr->taskcb(mqttptr->taskarg); }
-            else{ l_d("MQTT runing, do nothing"); }
-            tv.tv_sec = mqttptr->taskinterval.tv_sec;
-            tv.tv_usec = mqttptr->taskinterval.tv_usec;
-            break;
+static int mqtt_publish(void *vmqttptr, int *mid, const char *topic, int payloadlen, const void *payload, int qos, bool retain)
+{
+    mqtt_t *this = vmqttptr;
+    int32_t rc = mosquitto_publish(this->mosq, mid, topic, payloadlen, payload, qos, retain);
+    if (MOSQ_ERR_SUCCESS != rc) { mqttle("mosquitto_publish() failed:rc%d.'%s'", rc, mosquitto_strerror(rc)); return rc; }
+    mqttli("pub '%s' '%.*s' qos%d rc%d", topic, payloadlen, (char *)payload, qos, rc);
+    return rc;
+}
 
-        default:
-            l_w("Unkown MQTT_STATE_STATE:%d", mqttptr->state);
-            break;
+static void mqtt_suballtopic(void *vmqttptr)
+{
+    mqtt_t *this = vmqttptr;
+    char subtopic[1024] = {0};
+    config_setting_t *cssubtopicsls = this->cssubtopicsls;
+    for(int i = 0; i < config_setting_length(cssubtopicsls); ++i){
+        const char *origin = config_setting_get_string_elem(cssubtopicsls, i);
+        if(origin == NULL) { mqttle("cannot found cssubtopicsls[%u]", i); break; }
+
+        if(!this->m_strexpan){ mqttle("this->m_strexpan() is NULL"); break; }
+        int len = this->m_strexpan(this, origin, subtopic);
+        if(len <= 0){ mqttle("wrong subtopic'%s'", origin); exit(1); }
+
+        if(!this->m_sub){ mqttle("this->m_sub() is NULL"); break; }
+        this->m_sub(this, NULL, subtopic, 2);
+    }
+}
+
+static int mqtt_tasksrun(void *vmqttptr)
+{
+    mqtt_t *this = vmqttptr;
+    int32_t now = time(NULL);
+    config_setting_t *cstasksls = this->cstasksls;
+    for(int i = 0; i < this->taskstot; ++i){
+        if(now - this->taskslasttimels[i] < this->tasksintervalls[i]){ continue; }
+
+        config_setting_t *cstask = config_setting_get_elem(this->cstasksls, i);
+        if(!cstask){ mqttle("config_setting_get_elem() failed"); return -1; }
+
+        //topic
+        const char *origin = NULL;
+        config_setting_lookup_string(cstask, "pubtopic", &origin);
+        if(!origin){ mqttle("config_setting_lookup_string(pubtopic)"); continue; }
+
+        char pubtopic[1024] = {0};
+        if(!this->m_strexpan){ mqttle("this->m_strexpan() is NULL"); break; }
+        int topiclen = this->m_strexpan(this, origin, pubtopic);
+        if(topiclen <= 0){ mqttle("wrong pubtopic'%s'", origin); exit(1); }
+        printf("\n%s\n", pubtopic);
+
+        //payload
+        const char *payloadfmt = NULL;
+        config_setting_lookup_string(cstask, "payloadfmt", &payloadfmt);
+        if(!payloadfmt) { mqttle("config_setting_lookup_string(payloadfmt)"); continue; }
+
+        char payload[4096000] = {0};
+        if(!this->m_strexpan){ mqttle("this->m_strexpan() is NULL"); break; }
+        int payloadlen = this->m_strexpan(this, payloadfmt, payload);
+        if(payloadlen <= 0){ mqttle("wrong payloadfmt'%s'", payloadfmt); exit(1); }
+
+        if(!this->m_pub){ mqttle("this->m_pub() is NULL"); break; }
+        this->m_pub(this, NULL, pubtopic, payloadlen, payload, 2, false);
+        this->taskslasttimels[i] = now;
+    }
+    return 0;
+}
+
+static void mqtt_cb_on_connect(struct mosquitto *mosq, void *obj, int rc)
+{
+    mqtt_t *this = (mqtt_t *)obj;
+    if(this->mosq != mosq){ mqttle("this->mosq != mosq"); return ; }
+    mqttld("MQTT connected");
+    this->isconnected = 1;
+    this->state = MQTT_STATE_CONNECTED;
+}
+
+static void mqtt_cb_on_disconnect(struct mosquitto *mosq, void *obj, int rc)
+{
+    mqtt_t *this = (mqtt_t *)obj;
+    if(this->mosq != mosq){ mqttle("this->mosq != mosq"); return ; }
+    this->isconnected = 0;
+    this->state = MQTT_STATE_DISCONNECTED;
+    mqttlw("MQTT on_disconnect");
+}
+
+static void mqtt_cb_on_sub(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos)
+{
+    mqtt_t *this = (mqtt_t *)obj;
+    if(this->mosq != mosq){ mqttle("this->mosq != mosq"); return ; }
+    mqttld("topic subed");
+}
+
+static void mqtt_cb_on_unsub(struct mosquitto *mosq, void *obj, int mid)
+{
+    mqtt_t *this = (mqtt_t *)obj;
+    if(this->mosq != mosq){ mqttle("this->mosq != mosq"); return ; }
+    mqttld("topic unsubed");
+}
+
+static void mqtt_cb_on_pub(struct mosquitto *mosq, void *obj, int mid)
+{
+    mqtt_t *this = (mqtt_t *)obj;
+    if(this->mosq != mosq){ mqttle("this->mosq != mosq"); return ; }
+    mqttld("MQTT Message published. mid:%d, pubcnt:%d", mid, this->pubcnt);
+    if(!this->m_onpub){ return; }
+    return this->m_onpub(this, mid);
+}
+
+static void mqtt_cb_on_log(struct mosquitto *mosq, void *obj, int level, const char *str)
+{
+    /*mqtt_t *this = (mqtt_t *)obj;
+    if(this->mosq != mosq){ mqttle("this->mosq != mosq"); return ; }
+     mqttld("'%s'", str);*/
+}
+
+static void mqtt_cb_on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *message)
+{
+    mqtt_t *this = (mqtt_t *)obj;
+    if(this->mosq != mosq){ mqttle("this->mosq != mosq"); return ; }
+    mqttld("'%s' '%s'", (char *)message->topic, (char *)message->payload);
+    if(!this->m_rcvhandle){ mqttln("this->m_rcvhandle() is NULL"); return; }
+    return this->m_rcvhandle(this, (char *)message->topic, (char *)message->payload);
+}
+
+int mqtt_tasksinit(void *vmqttptr)
+{
+    mqtt_t *this = vmqttptr;
+    this->taskstot = config_setting_length(this->cstasksls);
+    if(this->taskstot){
+        this->taskslasttimels = malloc(sizeof(int32_t) * this->taskstot);
+        if(!this->taskslasttimels){ mqttle("malloc() %s", strerror(errno)); return -1; }
+
+        this->tasksintervalls = malloc(sizeof(int32_t) * this->taskstot);
+        if(!this->tasksintervalls){ mqttle("malloc() %s", strerror(errno)); return -1; }
     }
 
-    event_add(&mqttptr->fsmev, &tv); //redo
+    memset(this->taskslasttimels, 0, sizeof(int32_t) * this->taskstot);
+    for(int i = 0; i < this->taskstot; ++i){
+        config_setting_t *cstask = config_setting_get_elem(this->cstasksls, i);
+        if(!cstask){ mqttle("config_setting_get_elem(%u) failed", i); return -1; }
+        config_setting_lookup_int(cstask, "interval", &this->tasksintervalls[i]);
+        mqttld("taskls[%d].interval: %d", i, this->tasksintervalls[i]);
+    }
+    return 0;
+}
+
+void mqtt_set_default(mqtt_t *this)
+{
+    this->m_getvar = mqtt_getvar;
+    this->m_strexpan = mqtt_stringexpansion;
+    this->m_show = mqtt_show;
+    this->m_sub = mqtt_subscribe;
+    this->m_pub = mqtt_publish;
+    this->m_suball = mqtt_suballtopic;
+    this->m_tasksrun = mqtt_tasksrun;
+
+    this->mosq = mosquitto_new(this->clientid, this->clean_session, this);
+    if (NULL == this->mosq) { mqttle("mosquitto_new() failed"); exit(1); }
+    mosquitto_username_pw_set(this->mosq, this->usr, this->pwd);
+    mosquitto_connect_callback_set(this->mosq, mqtt_cb_on_connect);
+    mosquitto_disconnect_callback_set(this->mosq, mqtt_cb_on_disconnect);
+    mosquitto_subscribe_callback_set(this->mosq, mqtt_cb_on_sub);
+    mosquitto_unsubscribe_callback_set(this->mosq, mqtt_cb_on_unsub);
+    mosquitto_publish_callback_set(this->mosq, mqtt_cb_on_pub);
+    mosquitto_log_callback_set(this->mosq, mqtt_cb_on_log);
+    mosquitto_message_callback_set(this->mosq, mqtt_cb_on_message);
+    //mosquitto_will_set(mosq, willtopic, strlen(willpayloadlen), willpayload, 1, false);
+
+    this->state = MQTT_STATE_INIT;
 }
