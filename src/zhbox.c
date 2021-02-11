@@ -37,10 +37,10 @@ static cloud_t cloudls[CLOUDSIZE] = {
 
 zhbox_t zhbox;
 
-int zhbox_init(struct event_base *base)
+int zhbox_init(struct event_base *base, const char *configfile)
 {
     config_init(&zhbox.cfg);
-    if(!config_read_file(&zhbox.cfg, "./zhbox.cfg")) {
+    if(!config_read_file(&zhbox.cfg, configfile)) {
         l_e("%s:%d - %s", config_error_file(&zhbox.cfg), config_error_line(&zhbox.cfg), config_error_text(&zhbox.cfg));
         config_destroy(&zhbox.cfg);
         return -1;

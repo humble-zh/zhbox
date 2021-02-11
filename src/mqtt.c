@@ -133,7 +133,6 @@ static int mqtt_tasksrun(void *vmqttptr)
         if(!this->m_strexpan){ mqttle("this->m_strexpan() is NULL"); break; }
         int topiclen = this->m_strexpan(this, origin, pubtopic);
         if(topiclen <= 0){ mqttle("wrong pubtopic'%s'", origin); exit(1); }
-        printf("\n%s\n", pubtopic);
 
         //payload
         const char *payloadfmt = NULL;

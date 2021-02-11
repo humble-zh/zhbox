@@ -53,6 +53,6 @@ typedef struct _zhbox_t{
     mqtt_t **northarray;
 }zhbox_t;
 
-extern int zhbox_init(struct event_base *base);
+extern int zhbox_init(struct event_base *base, const char *configfile);
 extern int zhbox_destory(void);
 #endif //__ZHBOX_H__

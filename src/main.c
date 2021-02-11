@@ -33,6 +33,7 @@ SOFTWARE.
 #include <sys/types.h>
 #include <linux/limits.h>
 #include "pidfile.h"
+#include "ver.h"
 #include "l.h"
 #include "zhbox.h"
 #include "mqtt.h"
@@ -88,7 +89,7 @@ int main (int argc, char **argv)
 
     mosquitto_lib_init();
 
-    if(zhbox_init(base) < 0){ return -1; }
+    if(zhbox_init(base, configfile) < 0){ return -1; }
 
     event_base_dispatch(base);
 
@@ -104,23 +105,25 @@ static int get_opt(int argc, char **argv)
 {
     int opt;
     struct option long_opts[] = {
-        {"help",          0,  NULL,  'h'},
-        {"stop",          0,  NULL,  'S'},
-        {"start",         0,  NULL,  's'},
-        {"configfile",    1,  NULL,  'c'},
-        {"foreground",    0,  NULL,  'f'},
-        {0, 0, 0, 0}
+        {"help",       0,  NULL,  'h'},
+        {"stop",       0,  NULL,  'S'},
+        {"start",      0,  NULL,  's'},
+        {"configfile", 1,  NULL,  'c'},
+        {"foreground", 0,  NULL,  'f'},
+        {"Version",    0,  NULL,  'V'},
+        {0,            0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "hSsc:f", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hSsc:fV", long_opts, NULL)) != -1) {
         switch (opt) {
             case 'S': need_stop = 1; break;
             case 's': need_start = 1; break;
             case 'c': configfile = optarg; break;
             case 'f': need_daemon = 0; break;
+            case 'V': printf(PROG " - %s\n", ver); return 0;
             case '?':
             case 'h':
-            default:  usage(); return (-1);
+            default:  usage(); return -1;
         }
     }
 
@@ -169,13 +172,19 @@ static int daemonize(void)
 static void usage(void)
 {
 #define USAGE "\
+zhbox - %s\n\
 Usage: \n\
-  zhbox -<hsSc:> -[f]\n\n\
+  zhbox -<hsSc:> -[f]\n\
+    -h,        --help,              print this manual\n\
+    -s,        --start,             start the process\n\
+    -S,        --stop,              stop the process\n\
+    -c <file>, --configfile <file>, start the process with <file>\n\
+    -f,        --foreground,        start without daemonized\n\
 e.g.\n\
   # start with the /etc/file.cfg\n\
     zhbox -sc /etc/file.cfg\n\n\
   # Stop the process\n\
-    zhbox -S\n\n"
+    zhbox -S\n"
 
-    printf(USAGE);
+    printf(USAGE, ver);
 }
