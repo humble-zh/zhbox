@@ -26,33 +26,16 @@ SOFTWARE.
 #include <sys/types.h>
 #include <libconfig.h>
 #include <event.h>
-#include "mqtt.h"
+#include "obj.h"
 
-typedef enum _cloudid_t{
-    CLOUDGENERAL = 0,
-    CLOUDALI,
-    CLOUDSIZE
-}cloudid_t;
-#define invalidcloudid(id) ((id) < 0 || (id) >= CLOUDSIZE)
-
-typedef mqtt_t *(mqttnew_t)(void);
-typedef int (mqttinit_t)(struct event_base *base, mqtt_t *, config_setting_t *);
-typedef int (mqttfree_t)(mqtt_t *);
-
-typedef struct _cloud_t{
-    mqttnew_t *mqttnew;
-    mqttinit_t *mqttinit;
-    mqttfree_t *mqttfree;
-}cloud_t;
-
-typedef struct _zhbox_t{
+typedef struct _zhbox_t
+{
     config_t cfg;
-    int32_t enable;
     int32_t loglevel;
     int8_t northlstot;
-    mqtt_t **northarray;
+    obj_t **northarray;
 }zhbox_t;
 
-extern int zhbox_init(struct event_base *base, const char *configfile);
+extern int zhbox_init(struct event_base *base, const char *configfile, const char *includedir);
 extern int zhbox_destory(void);
 #endif //__ZHBOX_H__

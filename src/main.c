@@ -32,11 +32,11 @@ SOFTWARE.
 #include <event.h>
 #include <sys/types.h>
 #include <linux/limits.h>
+#include <mosquitto.h>
 #include "pidfile.h"
 #include "ver.h"
 #include "l.h"
 #include "zhbox.h"
-#include "mqtt.h"
 
 #define PID_FILE    "/var/run/%s.pid"
 #define OUT_FILE    "/tmp/%s.log"
@@ -47,6 +47,7 @@ static int need_start = 0,
 
 static struct event_base *base = NULL;
 static char *configfile;
+static char *includedir;
 static char pid_file[PATH_MAX];
 
 static int get_opt(int argc, char **argv);
@@ -89,7 +90,7 @@ int main (int argc, char **argv)
 
     mosquitto_lib_init();
 
-    if(zhbox_init(base, configfile) < 0){ return -1; }
+    if(zhbox_init(base, configfile, includedir) < 0){ return -1; }
 
     event_base_dispatch(base);
 
@@ -109,16 +110,18 @@ static int get_opt(int argc, char **argv)
         {"stop",       0,  NULL,  'S'},
         {"start",      0,  NULL,  's'},
         {"configfile", 1,  NULL,  'c'},
+        {"includedir", 1,  NULL,  'i'},
         {"foreground", 0,  NULL,  'f'},
         {"Version",    0,  NULL,  'V'},
         {0,            0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "hSsc:fV", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hSsc:i:fV", long_opts, NULL)) != -1) {
         switch (opt) {
             case 'S': need_stop = 1; break;
             case 's': need_start = 1; break;
             case 'c': configfile = optarg; break;
+            case 'i': includedir = optarg; break;
             case 'f': need_daemon = 0; break;
             case 'V': printf(PROG " - %s\n", ver); return 0;
             case '?':
@@ -130,6 +133,8 @@ static int get_opt(int argc, char **argv)
     if (!need_start && !need_stop) { usage(); return (-1); }
 
     if (need_start && configfile == NULL) { usage(); return (-1); }
+
+    if (includedir == NULL) { includedir = "/etc/zhbox/"; }
 
     return (0);
 }
@@ -175,11 +180,12 @@ static void usage(void)
 zhbox - %s\n\
 Usage: \n\
   zhbox -<hsSc:> -[f]\n\
-    -h,        --help,              print this manual\n\
-    -s,        --start,             start the process\n\
-    -S,        --stop,              stop the process\n\
-    -c <file>, --configfile <file>, start the process with <file>\n\
-    -f,        --foreground,        start without daemonized\n\
+    -h,        --help,                   print this manual\n\
+    -s,        --start,                  start the process\n\
+    -S,        --stop,                   stop the process\n\
+    -c <file>, --configfile <file>,      start the process with <file>\n\
+    -i <dir>,  --includedir <directory>, change the include dir, default: /etc/zhbox/\n\
+    -f,        --foreground,             start without daemonized\n\
 e.g.\n\
   # start with the /etc/file.cfg\n\
     zhbox -sc /etc/file.cfg\n\n\

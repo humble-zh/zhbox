@@ -26,7 +26,14 @@ SOFTWARE.
 #include <sys/types.h>
 #include <libconfig.h>
 
-typedef struct _task_t{
+#define TASK_BASEATTRIBUTES \
+    config_setting_t *cstasksls;\
+    int32_t taskstot;\
+    int32_t *taskslasttimels;\
+    int32_t *tasksintervalls;\
+
+typedef struct _task_t
+{
     int32_t lasttime;
     int32_t interval;
     const char *pubtopic;

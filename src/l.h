@@ -26,27 +26,32 @@ SOFTWARE.
 #include <stdio.h>
 #include <syslog.h>
 
-#define l_e(fmt, arg...) do {\
+#define l_e(fmt, arg...) do\
+{\
     fprintf(stderr, "%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
     syslog(LOG_ERR, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
 } while (0)
 
-#define l_w(fmt, arg...) do {\
+#define l_w(fmt, arg...) do\
+{\
     printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
     syslog(LOG_WARNING, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
 } while (0)
 
-#define l_n(fmt, arg...) do {\
+#define l_n(fmt, arg...) do\
+{\
     printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
     syslog(LOG_NOTICE, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
 } while (0)
 
-#define l_i(fmt, arg...) do {\
+#define l_i(fmt, arg...) do\
+{\
     printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
     syslog(LOG_INFO, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
 } while (0)
 
-#define l_d(fmt, arg...) do {\
+#define l_d(fmt, arg...) do\
+{\
     printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
     syslog(LOG_DEBUG, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
 } while (0)
