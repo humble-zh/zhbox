@@ -34,15 +34,32 @@ sudo pacman -S libconfig libevent mosquitto openssl
 ### 2.编译安装zhbox
 
 ```bash
+# 克隆最新的代码
 git clone https://github.com/humble-zh/zhbox.git
+
+# 进入源码目录
 cd zhbox
+
+# 删除旧的编译目录
 rm -rf build
+
+# 创建编译目录并且进入
 mkdir build && cd build
-cmake .. && make VERBOSE=1
-ls ./zhbox
+
+# 配置编译环境
+cmake ..
+
+# 开始编译
+make VERBOSE=1
+
+# 安装
 sudo make install
+
+# 检测是否安装成功
 zhbox --help
-#sudo xargs rm < install_manifest.txt #卸载
+
+# 卸载
+sudo xargs rm < install_manifest.txt
 ```
 
 ## 使用案例
