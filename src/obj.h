@@ -25,6 +25,7 @@ SOFTWARE.
 #define __OBJ_H__
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include <libconfig.h>
 #include <event.h>
@@ -92,7 +93,7 @@ typedef int64_t (*method_getmilliseconds_t)(void);
     if(!strncmp("objtype", key, keylen)){ return sprintf(dptr, "%s", this->objtypestr); }\
     if(!strncmp("name", key, keylen)){ return sprintf(dptr, "%s", this->name); }\
     if(!strncmp("timestamp", key, keylen)){ return sprintf(dptr, "%d", (int32_t)time(NULL)); }\
-    if(!strncmp("milliseconds", key, keylen)){ return sprintf(dptr, "%ld", this->m_getmilliseconds()); }\
+    if(!strncmp("milliseconds", key, keylen)){ return sprintf(dptr, "%" PRId64, this->m_getmilliseconds()); }\
 } while (0)
 
 typedef struct _obj_t

@@ -13,7 +13,9 @@ zhbox (中盒) 是一套 IOT-EDGE 程序。运行于Linux环境(Ubuntu, Arch, Op
 
 ## 安装
 
-### 1.安装依赖 [libconfig](https://hyperrealm.github.io/libconfig/), [libevent](https://libevent.org/), [libmosquitto](https://mosquitto.org/), [openssl](https://www.openssl.org/)
+### 1.安装依赖
+
+#### 1.1 安装依赖 [libconfig](https://hyperrealm.github.io/libconfig/), [libevent](https://libevent.org/), [libmosquitto](https://mosquitto.org/), [openssl](https://www.openssl.org/)
 
 #### Debian/Ubuntu
 ```bash
@@ -24,6 +26,10 @@ sudo apt-get install libconfig-dev libevent-dev libmosquitto-dev openssl libssl-
 ```bash
 sudo pacman -S libconfig libevent mosquitto openssl
 ```
+
+#### 1.2 安装依赖 [open62541](https://open62541.org/)
+
+安装方式可参考[Open62541编译与安装](https://humble-zh.github.io/2021/02/28/Open62541%E7%BC%96%E8%AF%91%E4%B8%8E%E5%AE%89%E8%A3%85/)
 
 ### 2.编译安装zhbox
 
@@ -41,7 +47,7 @@ zhbox --help
 
 ## 使用案例
 
-[zhbox](https://humble-zh.github.io/zhbox/)
+[zhbox使用参考案例](https://humble-zh.github.io/zhbox/)
 
 ## License
 

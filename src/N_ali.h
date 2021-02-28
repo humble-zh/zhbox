@@ -40,7 +40,7 @@ SOFTWARE.
     if(!strncmp("ProductKey", key, keylen)){ return sprintf(dptr, "%s", this->productkey); }\
     if(!strncmp("DeviceName", key, keylen)){ return sprintf(dptr, "%s", this->devicename); }\
     if(!strncmp("DeviceSecret", key, keylen)){ return sprintf(dptr, "%s", this->devicesecret); }\
-    if(!strncmp("LoginMilliSecond", key, keylen)){ return sprintf(dptr, "%ld", this->loginmillisecond); }\
+    if(!strncmp("LoginMilliSecond", key, keylen)){ return sprintf(dptr, "%" PRId64, this->loginmillisecond); }\
 } while (0)
 
 /*******************************************************************************
