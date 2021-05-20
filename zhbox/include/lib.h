@@ -25,34 +25,62 @@ SOFTWARE.
 #define __LIB_H__
 #include <libconfig.h>
 
-#define getcfgint(cfg, key, dptr) \
+#define cfglkir(cfg, key, dptr) \
     do{\
-        if(config_lookup_int(cfg, key, &dptr)){ l_d("%s: %d", key, dptr);} \
+        if(config_lookup_int(cfg, key, &dptr)){ l_d("%s: %d ok", key, dptr);} \
         else{ l_e("No '%s' setting in configuration file.", key);return -1; } \
     }while(0)
 
-#define getcfgbool(cfg, key, dptr) \
+#define cfglkbr(cfg, key, dptr) \
     do{\
-        if(config_lookup_bool(cfg, key, &dptr)){ l_d("%s: %d", key, dptr);} \
+        if(config_lookup_bool(cfg, key, &dptr)){ l_d("%s: %d ok", key, dptr);} \
         else{ l_e("No '%s' setting in configuration file.", key);return -1; } \
     }while(0)
 
-#define getsetstr(setting, key, dptr) \
+#define cfglksr(cfg, key, dptr) \
     do{\
-        if(config_setting_lookup_string(setting, key, &dptr)){ l_d("%s: %s", key, dptr); } \
+        if(config_lookup_string(cfg, key, &dptr)){ l_d("%s: '%s' ok", key, dptr); } \
         else{ l_e("No '%s' setting in configuration file.", key);return -1; } \
     }while(0)
 
-#define getsetint(setting, key, dptr) \
+
+//getsetstr(setting, key, dptr)
+#define cslksr(setting, key, dptr) \
     do{\
-        if(config_setting_lookup_int(setting, key, &dptr)){ l_d("%s: %d", key, dptr); } \
+        if(config_setting_lookup_string(setting, key, &dptr)){ l_d("%s: '%s' ok", key, dptr); } \
         else{ l_e("No '%s' setting in configuration file.", key);return -1; } \
     }while(0)
 
-#define getsetbool(setting, key, dptr) \
+//getsetint(setting, key, dptr)
+#define cslkir(setting, key, dptr) \
     do{\
-        if(config_setting_lookup_bool(setting, key, &dptr)){ l_d("%s: %d", key, dptr); } \
+        if(config_setting_lookup_int(setting, key, &dptr)){ l_d("%s: %d ok", key, dptr); } \
         else{ l_e("No '%s' setting in configuration file.", key);return -1; } \
     }while(0)
 
+//getsetbool(setting, key, dptr)
+#define cslkbr(setting, key, dptr) \
+    do{\
+        if(config_setting_lookup_bool(setting, key, &dptr)){ l_d("%s: %d ok", key, dptr); } \
+        else{ l_e("No '%s' setting in configuration file.", key);return -1; } \
+    }while(0)
+
+
+#define cslkse(setting, key, dptr) \
+    do{\
+        if(config_setting_lookup_string(setting, key, &dptr)){ l_d("%s: '%s' ok", key, dptr); } \
+        else{ l_e("No '%s' setting in configuration file.", key);goto cslk_err; } \
+    }while(0)
+
+#define cslkie(setting, key, dptr) \
+    do{\
+        if(config_setting_lookup_int(setting, key, &dptr)){ l_d("%s: %d ok", key, dptr); } \
+        else{ l_e("No '%s' setting in configuration file.", key);goto cslk_err; } \
+    }while(0)
+
+#define cslkbe(setting, key, dptr) \
+    do{\
+        if(config_setting_lookup_bool(setting, key, &dptr)){ l_d("%s: %d ok", key, dptr); } \
+        else{ l_e("No '%s' setting in configuration file.", key);goto cslk_err; } \
+    }while(0)
 #endif //__LIB_H__

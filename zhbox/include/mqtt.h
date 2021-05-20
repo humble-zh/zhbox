@@ -28,7 +28,6 @@ SOFTWARE.
 #include <event.h>
 #include "l.h"
 #include "obj.h"
-#include "task.h"
 
 #define MQTT_BASESTATE(PREFIX) \
     OBJ_BASESTATE(PREFIX##MQTT),\
@@ -50,13 +49,11 @@ typedef void mqtt_t;
 typedef int (*method_subscribe_t)(void *vmqttptr, int *mid, const char *sub, int qos);
 typedef int (*method_publish_t)(void *vmqttptr, int *mid, const char *topic, int payloadlen, const void *payload, int qos, bool retain);
 typedef void (*method_subscribeall_t)(void *vmqttptr);
-typedef int (*method_tasksrun_t)(void *vmqttptr);
 typedef void (*method_rcvhandle_t)(void *vmqttptr, char *topic, char *payload);
 typedef void (*method_onpub_t)(void *vmqttptr, int mid);
 
 #define MQTT_BASEATTRIBUTES \
     OBJ_BASEATTRIBUTES\
-    TASK_BASEATTRIBUTES\
     const char *addr;\
     int32_t port;\
     const char *clientid;\
@@ -75,7 +72,6 @@ typedef void (*method_onpub_t)(void *vmqttptr, int mid);
     method_subscribe_t    m_sub;\
     method_publish_t      m_pub;\
     method_subscribeall_t m_suball;\
-    method_tasksrun_t     m_tasksrun;\
     method_rcvhandle_t    m_rcvhandle;\
     method_onpub_t        m_onpub;
 
@@ -96,6 +92,7 @@ struct _mqtt_t
 };
 
 
+#if 0
 #define mqttle(fmt, arg...) do\
 {\
     objle("'%s' " fmt, this->clientid, ## arg);\
@@ -120,8 +117,8 @@ struct _mqtt_t
 {\
     objld("'%s' " fmt, this->clientid, ## arg);\
 } while (0)
+#endif
 
-extern int mqtt_tasksinit(void *vmqttptr);
 extern void mqtt_set_default(void *vmqttptr);
 extern void mqtt_init(void *vmqttptr);
 

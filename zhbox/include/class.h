@@ -21,26 +21,26 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 *******************************************************************************/
-#ifndef __TASK_H__
-#define __TASK_H__
-#include <sys/types.h>
+#ifndef __CLASS_H__
+#define __CLASS_H__
+#include <cfuhash.h>
 #include <libconfig.h>
+#include <event.h>
 
-#define TASK_BASEATTRIBUTES \
-    config_setting_t *cstasksls;\
-    int32_t taskstot;\
-    int32_t *taskslasttimels;\
-    int32_t *tasksintervalls;\
+//#define ZHBOX_LIB_PATH "/etc/zhbox/lib/"
 
-typedef struct _task_t
+typedef void *(objnew_t)(void);
+typedef int (objinit_t)(struct event_base *base, void *vobj, config_setting_t *cs);
+typedef int (objfree_t)(void *vobj);
+
+typedef struct _class_t
 {
-    int32_t lasttime;
-    int32_t interval;
-    const char *pubtopic;
-    const char *payloadfmt;
-    const char *propertyfmt;
-    config_setting_t *csproperties;
-}task_t;
+    objnew_t *objnew;
+    objinit_t *objinit;
+    objfree_t *objfree;
+}class_t;
 
-
-#endif //__TASK_H__
+extern cfuhash_table_t *htclasses;
+extern int classes_init(const char *plugindir);
+extern int classes_destroy(void);
+#endif /* ifndef __CLASS_H__ */

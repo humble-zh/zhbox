@@ -32,9 +32,7 @@ SOFTWARE.
 #include <event.h>
 #include <sys/types.h>
 #include <linux/limits.h>
-#include <mosquitto.h>
 #include "pidfile.h"
-#include "ver.h"
 #include "l.h"
 #include "zhbox.h"
 
@@ -88,15 +86,12 @@ int main (int argc, char **argv)
     base = event_base_new();
     if(base == NULL) { l_e("event_base_new() failed"); return -1; }
 
-    mosquitto_lib_init();
-
     if(zhbox_init(base, configfile, includedir) < 0){ return -1; }
 
     event_base_dispatch(base);
 
     l_d("zhbox exiting");
     zhbox_destory();
-    mosquitto_lib_cleanup();
     event_base_free(base);
     remove_pid(pid_file);
     return (0);
@@ -123,7 +118,7 @@ static int get_opt(int argc, char **argv)
             case 'c': configfile = optarg; break;
             case 'i': includedir = optarg; break;
             case 'f': need_daemon = 0; break;
-            case 'V': printf(PROG " - %s\n", ver); return 0;
+            case 'V': printf(PROG " - %s\n", _VERSION_); return 0;
             case '?':
             case 'h':
             default:  usage(); return -1;
@@ -192,5 +187,5 @@ e.g.\n\
   # Stop the process\n\
     zhbox -S\n"
 
-    printf(USAGE, ver);
+    printf(USAGE, _VERSION_);
 }

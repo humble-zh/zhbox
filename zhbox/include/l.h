@@ -21,39 +21,34 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 *******************************************************************************/
-#ifndef __N_ALI_H__
-#define __N_ALI_H__
-#include "mqtt.h"
+#ifndef __L_H__
+#define __L_H__
+#include <stdio.h>
+#include <syslog.h>
 
+#define l_e(fmt, arg...) do {\
+    fprintf(stderr, "%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
+    syslog(LOG_ERR, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
+} while (0)
 
-/*******************************************************************************
-*                         Ali Gateway Device by MQTT                          *
-*******************************************************************************/
-typedef enum _aligatewaydevmqtt_state_t
-{
-    MQTT_BASESTATE(ALIGATEWAYDEV),
-    ALIGATEWAYDEVMQTT_STATE_TOPOGET,
-    ALIGATEWAYDEVMQTT_STATE_END
-}aligatewaydevmqtt_state_t;
+#define l_w(fmt, arg...) do {\
+    printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
+    syslog(LOG_WARNING, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
+} while (0)
 
-#define ALIGATEWAYDEVMQTT_BASEATTRIBUTES \
-    MQTT_BASEATTRIBUTES\
-    ALIDEV_BASEATTRIBUTES\
-    const char *regionid;\
-    const char *deviceid;\
-    int32_t mode;\
-    const char *signmethod;\
-    /* SOUTH LIST */\
-    int32_t southlstot;\
-    void **southarray;
+#define l_n(fmt, arg...) do {\
+    printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
+    syslog(LOG_NOTICE, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
+} while (0)
 
-typedef struct _aligatewaydevmqtt_t
-{
-    ALIGATEWAYDEVMQTT_BASEATTRIBUTES
-}aligatewaydevmqtt_t;
+#define l_i(fmt, arg...) do {\
+    printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
+    syslog(LOG_INFO, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
+} while (0)
 
-extern void *aligatewaydevmqtt_new(void);
-extern int aligatewaydevmqtt_init(struct event_base *base, void *vobj, config_setting_t *cs);
-extern int aligatewaydevmqtt_free(void *vobj);
+#define l_d(fmt, arg...) do {\
+    printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, ## arg);\
+    syslog(LOG_DEBUG, "%s:%d: " fmt, __FUNCTION__, __LINE__, ## arg);\
+} while (0)
 
-#endif //__N_ALI_H__
+#endif /* ifndef __L_H__ */

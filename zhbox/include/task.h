@@ -21,39 +21,48 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 *******************************************************************************/
-#ifndef __N_ALI_H__
-#define __N_ALI_H__
-#include "mqtt.h"
+#ifndef __TASK_H__
+#define __TASK_H__
+#include <libconfig.h>
+#include <sys/types.h>
+#include <cfulist.h>
 
-
-/*******************************************************************************
-*                         Ali Gateway Device by MQTT                          *
-*******************************************************************************/
-typedef enum _aligatewaydevmqtt_state_t
+typedef struct _task_t task_t;
+typedef int (*task_run_t)(void *vpthis, void *vobj);
+struct _task_t
 {
-    MQTT_BASESTATE(ALIGATEWAYDEV),
-    ALIGATEWAYDEVMQTT_STATE_TOPOGET,
-    ALIGATEWAYDEVMQTT_STATE_END
-}aligatewaydevmqtt_state_t;
+    const char *type;
+    task_run_t task_run;
+    int32_t lasttime;
+    int32_t interval;
+    const char *pubtopic;
+    const char *payloadprefix;
+    const char *payloadsuffix;
+    const char *propertyfmt;
+    cfulist_t *lsproperties;
+};
 
-#define ALIGATEWAYDEVMQTT_BASEATTRIBUTES \
-    MQTT_BASEATTRIBUTES\
-    ALIDEV_BASEATTRIBUTES\
-    const char *regionid;\
-    const char *deviceid;\
-    int32_t mode;\
-    const char *signmethod;\
-    /* SOUTH LIST */\
-    int32_t southlstot;\
-    void **southarray;
 
-typedef struct _aligatewaydevmqtt_t
+typedef int (*method_tasksrun_t)(void *vmqttptr, void *vobj);
+
+
+#define TASKLS_BASEATTRIBUTES \
+    cfulist_t *ls;\
+    int32_t ret;\
+    method_tasksrun_t     m_tasksrun;
+/*
+    int32_t taskstot;\
+    int32_t *taskslasttimels;\
+    int32_t *tasksintervalls;\
+*/
+
+typedef struct _taskls_t
 {
-    ALIGATEWAYDEVMQTT_BASEATTRIBUTES
-}aligatewaydevmqtt_t;
+    TASKLS_BASEATTRIBUTES
+}taskls_t;
 
-extern void *aligatewaydevmqtt_new(void);
-extern int aligatewaydevmqtt_init(struct event_base *base, void *vobj, config_setting_t *cs);
-extern int aligatewaydevmqtt_free(void *vobj);
+extern void task_set_default(void *vpthis);
+//extern int tasks_init(void *vmqttptr);
+extern int taskls_init(void *vpthis, config_setting_t *cstasksls, task_run_t task_run);
 
-#endif //__N_ALI_H__
+#endif //__TASK_H__

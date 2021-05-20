@@ -27,16 +27,20 @@ SOFTWARE.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <mosquitto.h>
+#include "class.h"
 #include "l.h"
 #include "lib.h"
 #include "zhbox.h"
 
-zhbox_t zhbox;
+static zhbox_t zhbox;
 
 int zhbox_init(struct event_base *base, const char *configfile, const char *includedir)
 {
+    mosquitto_lib_init();
+
     struct stat sb;
-    if (stat(includedir, &sb) != 0 || !(S_ISDIR(sb.st_mode))) { mkdir(includedir, 0755); }
+    if(stat(includedir, &sb) != 0 || !(S_ISDIR(sb.st_mode))) { mkdir(includedir, 0755); }
 
     config_init(&zhbox.cfg);
     config_set_include_dir(&zhbox.cfg, includedir);
@@ -47,8 +51,13 @@ int zhbox_init(struct event_base *base, const char *configfile, const char *incl
         return -1;
     }
 
-    getcfgint(&zhbox.cfg, "loglevel", zhbox.loglevel);
+    cfglkir(&zhbox.cfg, "loglevel", zhbox.loglevel);
     setlogmask(LOG_UPTO(zhbox.loglevel));
+
+    const char *plugindir = NULL;
+    cfglksr(&zhbox.cfg, "plugindir", plugindir);
+    if(classes_init(plugindir) < 0){ return -1; }
+
 
     //North
     config_setting_t *csnorthls = config_lookup(&zhbox.cfg, "northls");
@@ -67,14 +76,20 @@ int zhbox_init(struct event_base *base, const char *configfile, const char *incl
         if(csnorth == NULL) { l_e("config_setting_get_elem() failed"); return -1; }
 
         const char *objtypestr =NULL;
-        getsetstr(csnorth, "objtype", objtypestr);
-        int32_t objtype = objtype_getindex(objtypestr);
-        if(invalidobjtype(objtype)){ l_e("invalidobjtype(%d)", objtype); return -1; }
+        cslksr(csnorth, "objtype", objtypestr);
 
-        obj_t *objptr = Clazz[objtype].objnew();
-        if(objptr == NULL){ return -1; }
-        objptr->objtypestr = objtypestr;
-        if(Clazz[objtype].objinit(base, objptr, csnorth) < 0){ return -1; }
+        class_t *aclass = NULL;
+        size_t data_size = 0;
+        cfuhash_get_data(htclasses, objtypestr, strlen(objtypestr), (void **)&aclass, &data_size);
+        if(!aclass->objnew || !aclass->objinit || !aclass->objfree){
+            l_e("aclass->{objnew,objinit,objfree} has NULL"); return -1; }
+
+        obj_t *objptr = aclass->objnew();
+        if(!objptr){ l_e("aclass->objnew() failed"); return -1; }
+
+        if(aclass->objinit(base, objptr, csnorth) < 0) { l_e("aclass->objinit(%s) failed", objtypestr); }
+
+        objptr->vpclass = aclass;
         zhbox.northarray[i] = objptr;
     }
 
@@ -84,12 +99,13 @@ int zhbox_init(struct event_base *base, const char *configfile, const char *incl
 int zhbox_destory(void)
 {
     for (int i = 0; i < zhbox.northlstot; ++i) {
-        obj_t *this = zhbox.northarray[i];
-        int32_t objtype = objtype_getindex(this->objtypestr);
-        if(invalidobjtype(objtype)){ l_e("invalidobjtype(%d)", objtype); }
-        Clazz[objtype].objfree(zhbox.northarray[i]);
+        obj_t *pthis = zhbox.northarray[i];
+        class_t *aclass = pthis->vpclass;
+        aclass->objfree(pthis);
     }
     if(zhbox.northarray){ free(zhbox.northarray); zhbox.northarray = NULL; }
+    classes_destroy();
     config_destroy(&zhbox.cfg);
+    mosquitto_lib_cleanup();
     return 0;
 }
